@@ -1,0 +1,20 @@
+.Rappen span{
+    color: green;
+}
+
+.Rappen div.invalid span{
+    color: red;
+}
+
+.Rappen div .icon{
+    width:20px;
+    height:20px;
+
+    background-image: url("../img/success.png");
+    background-size: contain;
+    background-repeat:no-repeat;
+}
+
+.Rappen div.invalid .icon{
+    background-image: url("../img/error.png");
+}
