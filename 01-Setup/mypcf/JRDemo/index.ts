@@ -1,4 +1,7 @@
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
+import * as React from 'react';
+import * as ReactDOM from 'react-dom';
+import { Demo } from './tsx/demo';
 
 export class JRDemo implements ComponentFramework.StandardControl<IInputs, IOutputs> {
 
@@ -6,6 +9,12 @@ export class JRDemo implements ComponentFramework.StandardControl<IInputs, IOutp
 	private _element: HTMLSpanElement;
 	private _min: number = 10;
 	private _max: number = 100;
+	private _input: HTMLInputElement;
+	private _value: number | undefined;
+	private _notifyOutputChanged: () => void;
+	private _inputOnChange: EventListenerOrEventListenerObject;
+	private _emptyValue = "---";
+	private _reactwrapper: HTMLDivElement;
 
 	/**
 	 * Empty constructor.
@@ -26,27 +35,56 @@ export class JRDemo implements ComponentFramework.StandardControl<IInputs, IOutp
 		this._wrapper = document.createElement("div");
 		this._element = document.createElement("span");
 		this._wrapper.appendChild(this._element);
-		
+
+		this._reactwrapper = document.createElement("div");
+
 		let icon = document.createElement("div");
 		icon.classList.add("icon");
 		this._wrapper.appendChild(icon);
 
 		container.appendChild(this._wrapper);
+		container.appendChild(this._reactwrapper);
 		let value = context.parameters.input.raw ? context.parameters.input.raw : 0;
 
-		this._min = context.parameters.min.raw? context.parameters.min.raw : 10;
-		this._max = context.parameters.max.raw? context.parameters.max.raw : 100;
+		this._min = context.parameters.min.raw ? context.parameters.min.raw : 10;
+		this._max = context.parameters.max.raw ? context.parameters.max.raw : 100;
 
-		this.setFormat(value);
+		this._input = document.createElement("input");
+		this._input.setAttribute("id", "inputField");
+		this._input.setAttribute("type", "text");
+		this._wrapper.appendChild(this._input);
+
+		this._notifyOutputChanged = notifyOutputChanged;
+		this._inputOnChange = this.inputOnChange.bind(this);
+		this._input.addEventListener("change", this._inputOnChange);
+
+		this.setFormat(value, context.parameters.input.raw ?? undefined);
 	}
 
-	private setFormat(value: number): void {
+	private setFormat(value: number, input: number | undefined): void {
 		this._element.innerHTML = value.toString();
 		if (value >= this._min && value <= this._max) {
 			this._wrapper.classList.remove("invalid");
 		} else {
 			this._wrapper.classList.add("invalid");
 		}
+		if (input === undefined || input === NaN) {
+			this._input.value = this._emptyValue;
+		}
+		else {
+			this._input.value = input?.toString();
+		}
+		this._value = input;
+	}
+
+	public inputOnChange(): void {
+		if (this._input.value === this._emptyValue) {
+			this._value = 0;
+		}
+		else {
+			this._value = parseInt(this._input.value);
+		}
+		this._notifyOutputChanged();
 	}
 
 	/**
@@ -54,10 +92,17 @@ export class JRDemo implements ComponentFramework.StandardControl<IInputs, IOutp
 	 * @param context The entire property bag available to control via Context Object; It contains values as set up by the customizer mapped to names defined in the manifest, as well as utility functions
 	 */
 	public updateView(context: ComponentFramework.Context<IInputs>): void {
-		this._min = context.parameters.min.raw? context.parameters.min.raw : 10;
-		this._max = context.parameters.max.raw? context.parameters.max.raw : 100;
+		this._min = context.parameters.min.raw ? context.parameters.min.raw : 10;
+		this._max = context.parameters.max.raw ? context.parameters.max.raw : 100;
 		let value = context.parameters.input.raw ? context.parameters.input.raw : 0;
-		this.setFormat(value);
+		this.setFormat(value, context.parameters.input.raw ?? undefined);
+		ReactDOM.render(
+			React.createElement(
+				Demo,
+				{ value: this._value }
+			),
+			this._reactwrapper
+		);
 	}
 
 	/** 
@@ -65,7 +110,7 @@ export class JRDemo implements ComponentFramework.StandardControl<IInputs, IOutp
 	 * @returns an object based on nomenclature defined in manifest, expecting object[s] for property marked as “bound” or “output”
 	 */
 	public getOutputs(): IOutputs {
-		return {};
+		return { input: this._value };
 	}
 
 	/** 
@@ -73,6 +118,6 @@ export class JRDemo implements ComponentFramework.StandardControl<IInputs, IOutp
 	 * i.e. cancelling any pending remote calls, removing listeners, etc.
 	 */
 	public destroy(): void {
-		// Add code to cleanup control if necessary
+		this._input.removeEventListener("change", this._inputOnChange);
 	}
 }
